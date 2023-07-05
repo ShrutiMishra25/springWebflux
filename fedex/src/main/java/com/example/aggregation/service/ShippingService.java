@@ -1,41 +1,33 @@
 package com.example.aggregation.service;
 
-import com.example.aggregation.client.Client;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.example.aggregation.client.ShippingClient;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class ShippingService {
-    @Autowired
-    private Client client;
 
-    class ShippingRequest {
-        List<String> shippingIds;
-        CompletableFuture<Map<String, ArrayList>> future;
-        Instant requestTime = Instant.now();
-
-    }
-
+    private final ShippingClient client;
     public volatile Instant shippingEntryTime;
+    private ConcurrentLinkedQueue<ShippingRequest> shippingQueue = new ConcurrentLinkedQueue<>();
+    private Map<String, List<String>> responses = new HashMap<>();
 
-    ConcurrentLinkedQueue<ShippingRequest> shippingQueue = new ConcurrentLinkedQueue<>();
-    Map<String, ArrayList> responses = new HashMap<>();
-
-    public Map<String, ArrayList> queryShipping(List<String> shipping) {
+    public Map<String, List<String>> queryShipping(List<String> shipping) {
         try {
             if (shipping != null && !shipping.isEmpty()) {
-                CompletableFuture<Map<String, ArrayList>> future = new CompletableFuture<>();
+                CompletableFuture<Map<String, List<String>>> future = new CompletableFuture<>();
                 ShippingRequest request = new ShippingRequest();
                 request.future = future;
                 request.shippingIds = shipping;
@@ -51,7 +43,7 @@ public class ShippingService {
         } catch (InterruptedException | ExecutionException ex) {
             throw new RuntimeException("ex");
         }
-        return null;
+        return Collections.emptyMap();
     }
 
     public void getShippingDetails() {
@@ -60,25 +52,30 @@ public class ShippingService {
         int size = shippingQueue.size();
         for (int i = 0; i < size; i++) {
             ShippingRequest request = shippingQueue.poll();
-            requests.add(request);
-            tracking.addAll(request.shippingIds);
-        }
-        List<String> uniqueShipping = tracking.stream().distinct().collect(Collectors.toList());
-        Mono<Map> shipmentQueue = client.getShipmentQueue(uniqueShipping);
-        shipmentQueue.subscribe(s -> getShippingMap(s));
-        for (ShippingRequest request : requests) {
-            Map<String, ArrayList> ShippingResponse = new HashMap<>();
-            for (String shippingId : request.shippingIds) {
-                ShippingResponse.put(shippingId, responses.get(shippingId));
+            if (request != null) {
+                requests.add(request);
+                tracking.addAll(request.shippingIds);
             }
-            request.future.complete(ShippingResponse);
+        }
+        List<String> uniqueShipping = tracking.stream().distinct().toList();
+        Mono<Map> shipmentQueue = client.getShipmentQueue(uniqueShipping);
+        shipmentQueue.subscribe(s -> responses.putAll(s));
+        for (ShippingRequest request : requests) {
+            Map<String, List<String>> shippingResponse = new HashMap<>();
+            for (String shippingId : request.shippingIds) {
+                shippingResponse.put(shippingId, responses.get(shippingId));
+            }
+            request.future.complete(shippingResponse);
         }
         shippingEntryTime = null;
     }
 
-    private Map<String, ArrayList> getShippingMap(Map s) {
-        responses.putAll(s);
-        return responses;
+
+    static class ShippingRequest {
+        List<String> shippingIds;
+        CompletableFuture<Map<String, List<String>>> future;
+        Instant requestTime = Instant.now();
+
     }
 
 }

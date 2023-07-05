@@ -1,36 +1,28 @@
 package com.example.aggregation.service;
 
-import com.example.aggregation.client.Client;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.example.aggregation.client.TrackingClient;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class TrackingService {
-    @Autowired
-    private Client client;
 
-    class TrackingRequest {
-        List<String> trackingIds;
-        CompletableFuture<Map<String, String>> future;
-        Instant requestTime = Instant.now();
-
-    }
-
-    ConcurrentLinkedQueue<TrackingRequest> trackingQueue = new ConcurrentLinkedQueue<>();
+    private final TrackingClient client;
     public volatile Instant trackingEntryTime;
-    Map<String, String> responses = new HashMap<>();
-
+    private ConcurrentLinkedQueue<TrackingRequest> trackingQueue = new ConcurrentLinkedQueue<>();
+    private Map<String, String> responses = new HashMap<>();
 
     public Map<String, String> queryTracking(List<String> tracking) {
         try {
@@ -51,7 +43,7 @@ public class TrackingService {
         } catch (InterruptedException | ExecutionException ex) {
             throw new RuntimeException("ex");
         }
-        return null;
+        return Collections.emptyMap();
     }
 
     public void getTrackingDetails() {
@@ -60,12 +52,14 @@ public class TrackingService {
         int size = trackingQueue.size();
         for (int i = 0; i < size; i++) {
             TrackingRequest request = trackingQueue.poll();
-            requests.add(request);
-            tracking.addAll(request.trackingIds);
+            if (request != null) {
+                requests.add(request);
+                tracking.addAll(request.trackingIds);
+            }
         }
-        List<String> uniqueTracking = tracking.stream().distinct().collect(Collectors.toList());
+        List<String> uniqueTracking = tracking.stream().distinct().toList();
         Mono<Map> shippingResponses = client.getTrackingQueue(uniqueTracking);
-        shippingResponses.subscribe(s -> getTrackingMap(s));
+        shippingResponses.subscribe(s -> responses.putAll(s));
         for (TrackingRequest request : requests) {
             Map<String, String> trackingResponse = new HashMap<>();
             for (String trackingId : request.trackingIds) {
@@ -76,9 +70,11 @@ public class TrackingService {
         trackingEntryTime = null;
     }
 
-    private Map<String, String> getTrackingMap(Map s) {
-        responses.putAll(s);
-        return responses;
+    static class TrackingRequest {
+        private List<String> trackingIds;
+        private CompletableFuture<Map<String, String>> future;
+        private Instant requestTime = Instant.now();
+
     }
 }
 

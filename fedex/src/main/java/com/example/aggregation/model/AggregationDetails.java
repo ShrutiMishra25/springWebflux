@@ -1,4 +1,3 @@
-
 package com.example.aggregation.model;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
@@ -7,7 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 @Data
@@ -16,8 +15,9 @@ import java.util.Map;
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class AggregationDetails {
-    private Map<String, Double>  pricing;
+
+    private Map<String, Double> pricing;
     private Map<String, String> track;
-    private Map<String, ArrayList> shipments;
+    private Map<String, List<String>> shipments;
 }
 

@@ -1,34 +1,28 @@
 package com.example.aggregation.service;
 
-import com.example.aggregation.client.Client;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.example.aggregation.client.PricingClient;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class PricingService {
-    @Autowired
-    private Client client;
 
-    class PricingRequest {
-        List<String> pricingIds;
-        CompletableFuture<Map<String, Double>> future;
-        Instant requestTime = Instant.now();
-    }
-
-    ConcurrentLinkedQueue<PricingRequest> pricingQueue = new ConcurrentLinkedQueue<>();
+    private final PricingClient client;
     public volatile Instant entryTime;
-    Map<String, Double> responses = new HashMap<>();
+    private ConcurrentLinkedQueue<PricingRequest> pricingQueue = new ConcurrentLinkedQueue<>();
+    private Map<String, Double> responses = new HashMap<>();
 
     public Map<String, Double> queryPricing(List<String> pricing) {
         try {
@@ -49,7 +43,7 @@ public class PricingService {
         } catch (InterruptedException | ExecutionException ex) {
             throw new RuntimeException("ex");
         }
-        return null;
+        return Collections.emptyMap();
     }
 
     public void getPricingDetails() {
@@ -58,12 +52,15 @@ public class PricingService {
         int size = pricingQueue.size();
         for (int i = 0; i < size; i++) {
             PricingRequest request = pricingQueue.poll();
-            requests.add(request);
-            pricing.addAll(request.pricingIds);
+            if (request != null) {
+                requests.add(request);
+                pricing.addAll(request.pricingIds);
+            }
+
         }
-        List<String> uniquePricing = pricing.stream().distinct().collect(Collectors.toList());
+        List<String> uniquePricing = pricing.stream().distinct().toList();
         Mono<Map> pricingQueueResponse = client.getPricingQueue(uniquePricing);
-        pricingQueueResponse.subscribe(s -> getPricingMap(s));
+        pricingQueueResponse.subscribe(s -> responses.putAll(s));
         for (PricingRequest request : requests) {
             Map<String, Double> pricingResponse = new HashMap<>();
             for (String pricingId : request.pricingIds) {
@@ -75,9 +72,11 @@ public class PricingService {
 
     }
 
-    private Map<String, Double> getPricingMap(Map s) {
-        responses.putAll(s);
-        return responses;
+
+    static class PricingRequest {
+        List<String> pricingIds;
+        CompletableFuture<Map<String, Double>> future;
+        Instant requestTime = Instant.now();
     }
 }
 

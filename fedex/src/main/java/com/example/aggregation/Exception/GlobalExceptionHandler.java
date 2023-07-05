@@ -1,4 +1,4 @@
-package com.example.aggregation.Exception;
+package com.example.aggregation.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
@@ -12,36 +12,33 @@ import java.io.IOException;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
-    @ControllerAdvice
-    public class AggregationExceptionHandler {
 
-        @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
-        @ResponseStatus(HttpStatus.METHOD_NOT_ALLOWED)
-        @ResponseBody
-        public ErrorInfo handleMethodNotSupported(WebRequest request) {
-            return new ErrorInfo(request.getContextPath(), "HTTP request method not supported for this operation.");
-        }
 
-        @ExceptionHandler(IOException.class)
-        @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-        @ResponseBody
-        public ErrorInfo handleIOException(WebRequest request, Exception ex) {
-            return new ErrorInfo(request.getContextPath(), "IO Error: " + ex.getMessage());
-        }
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    @ResponseStatus(HttpStatus.METHOD_NOT_ALLOWED)
+    @ResponseBody
+    public ErrorInfo handleMethodNotSupported(WebRequest request) {
+        return new ErrorInfo(request.getContextPath(), "HTTP request method not supported for this operation.");
+    }
 
-        @ExceptionHandler(ServiceException.class)
-        @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
-        @ResponseBody
-        public ErrorInfo handleServiceException(WebRequest request, Exception ex) {
-            return new ErrorInfo(request.getContextPath(), "Service Exception: " + ex.getMessage());
-        }
+    @ExceptionHandler(IOException.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    @ResponseBody
+    public ErrorInfo handleIOException(WebRequest request, Exception ex) {
+        return new ErrorInfo(request.getContextPath(), "IO Error: " + ex.getMessage());
+    }
 
-        @ExceptionHandler(RuntimeException.class)
-        @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-        @ResponseBody
-        public ErrorInfo handleRuntimeException(WebRequest request, Exception ex) {
-            return new ErrorInfo(request.getContextPath(), "Runtime Exception: " + ex.getMessage());
-        }
+    @ExceptionHandler(ServiceException.class)
+    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+    @ResponseBody
+    public ErrorInfo handleServiceException(WebRequest request, Exception ex) {
+        return new ErrorInfo(request.getContextPath(), "Service Exception: " + ex.getMessage());
+    }
 
+    @ExceptionHandler(RuntimeException.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    @ResponseBody
+    public ErrorInfo handleRuntimeException(WebRequest request, Exception ex) {
+        return new ErrorInfo(request.getContextPath(), "Runtime Exception: " + ex.getMessage());
     }
 }

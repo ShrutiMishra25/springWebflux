@@ -1,11 +1,9 @@
 package com.example.aggregation.config;
 
 import com.example.aggregation.service.PricingService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.scheduling.Trigger;
-import org.springframework.scheduling.TriggerContext;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.SchedulingConfigurer;
 import org.springframework.scheduling.config.ScheduledTaskRegistrar;
@@ -17,10 +15,10 @@ import java.util.concurrent.Executors;
 
 @Configuration
 @EnableScheduling
+@RequiredArgsConstructor
 public class PricingSchedulingConfig implements SchedulingConfigurer {
 
-    @Autowired
-    private PricingService pricingService;
+    private final PricingService pricingService;
 
     @Bean
     public Executor pricingTaskExecutor() {
@@ -30,22 +28,15 @@ public class PricingSchedulingConfig implements SchedulingConfigurer {
     @Override
     public void configureTasks(ScheduledTaskRegistrar taskRegistrar) {
         taskRegistrar.setScheduler(pricingTaskExecutor());
-        taskRegistrar.addTriggerTask(new Runnable() {
-            @Override
-            public void run() {
-                if (pricingService.entryTime != null) {
-                    pricingService.getPricingDetails();
-                }
+        taskRegistrar.addTriggerTask(() -> {
+            if (pricingService.entryTime != null) {
+                pricingService.getPricingDetails();
             }
-        }, new Trigger() {
-            @Override
-            public Instant nextExecution(TriggerContext triggerContext) {
-                Duration d = Duration.ofSeconds(5);
-                if (pricingService.entryTime != null) return pricingService.entryTime.plus(d);
-                else return Instant.now().plus(d);
-            }
+        }, triggerContext -> {
+            Duration d = Duration.ofSeconds(5);
+            if (pricingService.entryTime != null) return pricingService.entryTime.plus(d);
+            else return Instant.now().plus(d);
         });
     }
-
 }
 

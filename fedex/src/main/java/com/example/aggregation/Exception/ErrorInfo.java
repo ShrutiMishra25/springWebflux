@@ -1,4 +1,4 @@
-package com.example.aggregation.Exception;
+package com.example.aggregation.exception;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
